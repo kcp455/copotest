@@ -778,10 +778,124 @@ function buildMarksTable() {
 
   document.getElementById('marksTableWrap').innerHTML = html;
   document.getElementById('marksInfo').innerHTML =
-    `<strong>Columns:</strong> ${cols.length} | <strong>Students:</strong> ${N} | Enter Max Marks in blue row, then student marks.`;
+    `<strong>Columns:</strong> ${cols.length} | <strong>Students:</strong> ${N} | Enter Max Marks in blue row, then student marks. <span style="color:var(--accent)">↵ Enter = down &nbsp;|&nbsp; Tab = right &nbsp;|&nbsp; Arrow keys navigate &nbsp;|&nbsp; Paste from Excel ✓</span>`;
+  attachTableKeyboardHandlers();
 }
 
 function updateMaxHeader(i,v) { S.maxMarks[i]=parseFloat(v)||0; }
+
+// ===================== TABLE KEYBOARD & PASTE NAVIGATION =====================
+function getAllInputs() {
+  // Returns 2D array of inputs: [row][col] — row 0 = max marks row, row 1..N = student rows
+  const tbl = document.getElementById('marksTable');
+  if (!tbl) return [];
+  const grid = [];
+  // Max marks row (thead row index 1 = 2nd tr in thead)
+  const maxInputs = Array.from(tbl.querySelectorAll('thead tr:nth-child(2) input'));
+  grid.push(maxInputs);
+  // Student rows
+  tbl.querySelectorAll('tbody tr').forEach(tr => {
+    const inputs = Array.from(tr.querySelectorAll('input'));
+    grid.push(inputs); // index 0 = rollno, 1..end = marks
+  });
+  return grid;
+}
+
+function findInputPos(target) {
+  const grid = getAllInputs();
+  for (let r = 0; r < grid.length; r++)
+    for (let c = 0; c < grid[r].length; c++)
+      if (grid[r][c] === target) return {r, c, grid};
+  return null;
+}
+
+function attachTableKeyboardHandlers() {
+  const wrap = document.getElementById('marksTableWrap');
+  if (!wrap) return;
+
+  wrap.addEventListener('keydown', function(e) {
+    const inp = e.target;
+    if (inp.tagName !== 'INPUT') return;
+
+    const pos = findInputPos(inp);
+    if (!pos) return;
+    const {r, c, grid} = pos;
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Move down one row, same column
+      const nextRow = r + 1;
+      if (nextRow < grid.length && c < grid[nextRow].length) {
+        grid[nextRow][c].focus();
+        grid[nextRow][c].select();
+      }
+    } else if (e.key === 'Tab') {
+      // Natural tab — just ensure we wrap to next row first col if at end
+      const isLast = c === grid[r].length - 1;
+      if (isLast) {
+        e.preventDefault();
+        const nextRow = e.shiftKey ? r - 1 : r + 1;
+        if (nextRow >= 0 && nextRow < grid.length) {
+          grid[nextRow][0].focus();
+          grid[nextRow][0].select();
+        }
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (r + 1 < grid.length && c < grid[r+1].length) { grid[r+1][c].focus(); grid[r+1][c].select(); }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (r - 1 >= 0 && c < grid[r-1].length) { grid[r-1][c].focus(); grid[r-1][c].select(); }
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (c + 1 < grid[r].length) { grid[r][c+1].focus(); grid[r][c+1].select(); }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (c - 1 >= 0) { grid[r][c-1].focus(); grid[r][c-1].select(); }
+    }
+  });
+
+  // ---- Excel paste handler ----
+  wrap.addEventListener('paste', function(e) {
+    const inp = e.target;
+    if (inp.tagName !== 'INPUT') return;
+    const pos = findInputPos(inp);
+    if (!pos) return;
+
+    const clipText = (e.clipboardData || window.clipboardData).getData('text');
+    if (!clipText) return;
+
+    // Parse TSV (tab-separated rows, newline-separated lines) — Excel copies as TSV
+    const rows = clipText.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trimEnd().split('\n');
+    const pasteData = rows.map(row => row.split('\t'));
+
+    // Only intercept multi-cell pastes
+    const isMultiCell = pasteData.length > 1 || pasteData[0].length > 1;
+    if (!isMultiCell) return; // let browser handle single-cell paste normally
+
+    e.preventDefault();
+
+    const {r, c, grid} = pos;
+    pasteData.forEach((rowData, dr) => {
+      rowData.forEach((val, dc) => {
+        const tr = r + dr;
+        const tc = c + dc;
+        if (tr < grid.length && tc < grid[tr].length) {
+          const cell = grid[tr][tc];
+          const clean = val.trim();
+          cell.value = clean;
+          // Trigger onchange to sync S.marks / S.maxMarks / S.rollNos
+          cell.dispatchEvent(new Event('change', {bubbles:true}));
+        }
+      });
+    });
+
+    // Focus the cell after last pasted cell
+    const lastR = Math.min(r + pasteData.length - 1, grid.length - 1);
+    const lastC = Math.min(c + pasteData[pasteData.length-1].length - 1, grid[lastR].length - 1);
+    grid[lastR][lastC].focus();
+  });
+}
 
 function saveMarks() {
   // sync from DOM
