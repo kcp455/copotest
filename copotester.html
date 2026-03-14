@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CO-PO Attainment Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1f2937;
+    --border: #30363d;
+    --accent: #00d4aa;
+    --accent2: #3b82f6;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --heading: #00d4aa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 24px rgba(0,212,170,0.08);
+  }
+
+  header .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -1px;
+  }
+
+  header .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .step-bar {
+    display: flex;
+    gap: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .step-item {
+    padding: 12px 20px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    border-bottom: 3px solid transparent;
+  }
+
+  .step-item:hover { background: var(--surface2); color: var(--text); }
+  .step-item.active { color: var(--accent); border-bottom: 3px solid var(--accent); background: rgba(0,212,170,0.05); }
+  .step-item.done { color: var(--accent2); }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  select, input[type="text"], input[type="number"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  select:focus, input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,170,0.12);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 7px;
+    border: none;
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.18s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0d1117;
+  }
+  .btn-primary:hover { background: #00e8bb; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-blue {
+    background: var(--accent2);
+    color: #fff;
+  }
+  .btn-blue:hover { background: #2563eb; }
+
+  .btn-warn {
+    background: var(--warn);
+    color: #000;
+  }
+  .btn-warn:hover { background: #fbbf24; }
+
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-top: 16px;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  th {
+    background: var(--surface2);
+    color: var(--accent);
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  td {
+    border: 1px solid var(--border);
+    padding: 4px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .td-label {
+    background: var(--surface2);
+    color: var(--accent);
+    font-weight: 600;
+    padding: 6px 12px;
+    text-align: left;
+  }
+
+  td input[type="number"], td input[type="text"] {
+    width: 56px;
+    padding: 5px 4px;
+    text-align: center;
+    font-size: 12px;
+    border-radius: 4px;
+    border-color: var(--border);
+    background: rgba(30,40,55,0.8);
+  }
+
+  td input[type="number"]:focus {
+    border-color: var(--accent);
+    background: rgba(0,212,170,0.06);
+    width: 68px;
+  }
+
+  .rollno-input { width: 72px !important; font-size: 11px; }
+
+  .th-group {
+    background: rgba(0,212,170,0.12);
+    color: var(--accent);
+    font-size: 11px;
+  }
+
+  .th-group-mid2 {
+    background: rgba(59,130,246,0.12);
+    color: var(--accent2);
+    font-size: 11px;
+  }
+
+  .th-group-assign {
+    background: rgba(245,158,11,0.12);
+    color: var(--warn);
+    font-size: 11px;
+  }
+
+  .co-check-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .co-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+
+  .co-check:hover { border-color: var(--accent); }
+  .co-check input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+  .co-check.selected { border-color: var(--accent); background: rgba(0,212,170,0.08); color: var(--accent); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .badge-green { background: rgba(0,212,170,0.15); color: var(--accent); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--accent2); }
+  .badge-warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+
+  .info-bar {
+    background: rgba(0,212,170,0.06);
+    border: 1px solid rgba(0,212,170,0.2);
+    border-radius: 7px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .info-bar strong { color: var(--accent); }
+
+  .avg-row td {
+    background: rgba(245,158,11,0.08);
+    color: var(--warn);
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .max-row td {
+    background: rgba(59,130,246,0.08);
+    color: var(--accent2);
+    font-weight: 700;
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  .hidden { display: none !important; }
+
+  .row-grid { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+
+  .alert {
+    padding: 12px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .alert-success { background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); color: var(--accent); }
+  .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: var(--accent2); }
+
+  #step1, #step2, #step3, #step4 { display: none; }
+  #step1 { display: block; }
+
+  .final-co-cell { background: rgba(0,212,170,0.05); color: var(--text); font-weight: 600; }
+
+  /* Scrollable marks table container */
+  .marks-table-wrap { overflow: auto; max-height: 600px; border-radius: 8px; border: 1px solid var(--border); }
+  .marks-table-wrap table th { position: sticky; top: 0; z-index: 2; }
+  .marks-table-wrap table tr:first-child th { top: 0; }
+  .marks-table-wrap table tr:nth-child(2) th { top: 33px; }
+  .marks-table-wrap table tr:nth-child(3) th { top: 66px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">CO-PO TOOL</div>
+    <div class="subtitle">Course Outcome Attainment Calculator</div>
+  </div>
+  <div style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)" id="headerInfo"></div>
+</header>
+
+<div class="step-bar">
+  <div class="step-item active" id="nav1" onclick="goStep(1)">① Course Setup</div>
+  <div class="step-item" id="nav2" onclick="goStep(2)">② CO-PO Mapping</div>
+  <div class="step-item" id="nav3" onclick="goStep(3)">③ Exam Config</div>
+  <div class="step-item" id="nav4" onclick="goStep(4)">④ Marks & Attainment</div>
+</div>
+
+<div class="container">
+
+<!-- STEP 1: Course Setup -->
+<div id="step1">
+  <div class="panel">
+    <div class="panel-title">📋 Course Setup</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Regulation</label>
+        <select id="regulation">
+          <option value="">Select...</option>
+          <option>R25</option><option>R23</option><option>R20</option><option>R19</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Department</label>
+        <select id="department">
+          <option value="">Select...</option>
+          <option>CE</option><option>EEE</option><option>ME</option><option>ECE</option>
+          <option>CSE</option><option>AIML</option><option>AI</option><option>DS</option>
+          <option>IT</option><option>CS</option><option>BSH</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Academic Year</label>
+        <input type="text" id="acYear" placeholder="e.g. 2024-25">
+      </div>
+      <div class="field">
+        <label>No. of Students (N)</label>
+        <input type="number" id="nStudents" min="1" placeholder="e.g. 60">
+      </div>
+      <div class="field">
+        <label>No. of COs (C)</label>
+        <input type="number" id="nCOs" min="1" max="20" placeholder="e.g. 5">
+      </div>
+      <div class="field">
+        <label>No. of POs (P)</label>
+        <input type="number" id="nPOs" min="1" max="20" placeholder="e.g. 12">
+      </div>
+      <div class="field">
+        <label>No. of PSOs (Ps)</label>
+        <input type="number" id="nPSOs" min="0" max="10" placeholder="e.g. 3">
+      </div>
+    </div>
+    <div style="margin-top:24px">
+      <button class="btn btn-primary" onclick="submitStep1()">SUBMIT & CONTINUE →</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 2: CO-PO Mapping -->
+<div id="step2">
+  <div class="panel">
+    <div class="panel-title">🗺️ CO-PO / CO-PSO Mapping Table</div>
+    <div class="info-bar" id="mapInfo">Map each CO against POs and PSOs. Use values 1 (Low), 2 (Medium), 3 (High) or 0 for no correlation.</div>
+    <div class="table-wrap" id="copoMapWrap"></div>
+    <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveMapping()">💾 SAVE MAPPING & CONTINUE →</button>
+      <button class="btn btn-secondary" onclick="goStep(1)">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3: Exam Configuration -->
+<div id="step3">
+  <div class="panel">
+    <div class="panel-title">⚙️ Exam Configuration</div>
+    <div class="form-grid" style="max-width:700px">
+      <div class="field">
+        <label>Exam Type</label>
+        <select id="examType">
+          <option value="mid1only">MID1 Only</option>
+          <option value="mid2only">MID2 Only</option>
+          <option value="both">MID1 + MID2</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Question Split Mode</label>
+        <select id="splitMode">
+          <option value="single">Single (same Ndesc/Nobj for both)</option>
+          <option value="split">Split (different Ndesc/Nobj per MID)</option>
+        </select>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <div id="mid1Config">
+      <div class="panel-title" style="font-size:12px;margin-bottom:12px">MID1 CONFIGURATION</div>
+      <div class="form-grid" style="max-width:500px">
+        <div class="field">
+          <label>No. of Descriptive Questions</label>
+          <input type="number" id="mid1Desc" min="1" placeholder="e.g. 3" value="3">
+        </div>
+        <div class="field">
+          <label>No. of Objective Question COs</label>
+          <input type="number" id="mid1Obj" min="0" placeholder="e.g. 2" value="2">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <label style="display:block;margin-bottom:8px">SELECT COs for MID1:</label>
+        <div class="co-check-group" id="mid1COSelect"></div>
+      </div>
+    </div>
+    <hr class="section-divider" id="mid2ConfigDivider">
+    <div id="mid2Config">
+      <div class="panel-title" style="font-size:12px;margin-bottom:12px;color:var(--accent2)">MID2 CONFIGURATION</div>
+      <div class="form-grid" style="max-width:500px" id="mid2SplitFields">
+        <div class="field">
+          <label>No. of Descriptive Questions</label>
+          <input type="number" id="mid2Desc" min="1" placeholder="e.g. 3" value="3">
+        </div>
+        <div class="field">
+          <label>No. of Objective Question COs</label>
+          <input type="number" id="mid2Obj" min="0" placeholder="e.g. 2" value="2">
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <label style="display:block;margin-bottom:8px">SELECT COs for MID2:</label>
+        <div class="co-check-group" id="mid2COSelect"></div>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <div>
+      <div class="panel-title" style="font-size:12px;margin-bottom:12px;color:var(--warn)">ASSIGNMENTS CONFIGURATION</div>
+      <div style="margin-top:4px">
+        <label style="display:block;margin-bottom:8px">SELECT COs for Assignments:</label>
+        <div class="co-check-group" id="assignCOSelect"></div>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="generateMarksTable()">GENERATE MARKS TABLE →</button>
+      <button class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 4: Marks Entry & Attainment -->
+<div id="step4">
+  <div class="panel">
+    <div class="panel-title">📊 Marks Entry</div>
+    <div id="marksInfo" class="info-bar"></div>
+    <div class="marks-table-wrap" id="marksTableWrap"></div>
+    <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveMarks()">💾 SAVE MARKS</button>
+      <button class="btn btn-blue" onclick="generateAttainment()">⚡ GENERATE CO ATTAINMENT</button>
+      <button class="btn btn-secondary" onclick="goStep(3)">← Back</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="attainmentPanel">
+    <div class="panel-title">🎯 CO Attainment Summary</div>
+    <div class="table-wrap" id="attainmentTable"></div>
+    <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-warn" onclick="downloadXLSX()">⬇️ DOWNLOAD XLSX</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ===================== STATE =====================
+let S = {
+  regulation:'', department:'', acYear:'', N:0,
+  C:0, P:0, Ps:0,
+  copoMap: [],         // [C][P+Ps]
+  examType:'both', splitMode:'single',
+  mid1Desc:3, mid1Obj:2, mid2Desc:3, mid2Obj:2,
+  mid1COs:[], mid2COs:[], assignCOs:[],
+  rollNos: [],
+  colDefs: [],         // column definitions for marks table
+  maxMarks: [],        // per column
+  marks: [],           // [student][col]
+  coAttainment: [],    // final per-CO
+};
+
+// ===================== NAVIGATION =====================
+function goStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step'+i).style.display = i===n ? 'block' : 'none';
+    document.getElementById('nav'+i).classList.toggle('active', i===n);
+  });
+}
+
+// ===================== STEP 1 =====================
+function submitStep1() {
+  const reg = document.getElementById('regulation').value;
+  const dep = document.getElementById('department').value;
+  const ay = document.getElementById('acYear').value.trim();
+  const N = parseInt(document.getElementById('nStudents').value);
+  const C = parseInt(document.getElementById('nCOs').value);
+  const P = parseInt(document.getElementById('nPOs').value);
+  const Ps = parseInt(document.getElementById('nPSOs').value)||0;
+  if (!reg||!dep||!ay||!N||!C||!P) { alert('Please fill all required fields.'); return; }
+  S.regulation=reg; S.department=dep; S.acYear=ay; S.N=N; S.C=C; S.P=P; S.Ps=Ps;
+  // init rollNos
+  S.rollNos = Array.from({length:N},(_,i)=>'');
+  document.getElementById('headerInfo').textContent = `${dep} | ${reg} | ${ay} | N=${N} | C=${C} | P=${P} | Ps=${Ps}`;
+  buildCopoMapTable();
+  goStep(2);
+}
+
+// ===================== STEP 2: CO-PO Map =====================
+function buildCopoMapTable() {
+  const {C,P,Ps} = S;
+  // init map if not set
+  if (!S.copoMap.length) S.copoMap = Array.from({length:C},()=>Array(P+Ps).fill(''));
+  let html = '<table><thead><tr>';
+  html += '<th>CO / PO / PSO</th>';
+  for(let p=1;p<=P;p++) html += `<th>PO${p}</th>`;
+  for(let ps=1;ps<=Ps;ps++) html += `<th>PSO${ps}</th>`;
+  html += '</tr></thead><tbody>';
+  for(let c=0;c<C;c++) {
+    html += `<tr><td class="td-label">CO${c+1}</td>`;
+    for(let j=0;j<P+Ps;j++) {
+      html += `<td><input type="number" min="0" max="3" style="width:46px" value="${S.copoMap[c][j]}" onchange="S.copoMap[${c}][${j}]=this.value||0"></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('copoMapWrap').innerHTML = html;
+  document.getElementById('mapInfo').innerHTML = `<strong>C=${C}, P=${P}, Ps=${Ps}</strong> — Table size: ${C} × ${P+Ps}. Enter correlation level: 0=None, 1=Low, 2=Medium, 3=High`;
+}
+
+function saveMapping() {
+  const {C,P,Ps} = S;
+  for(let c=0;c<C;c++)
+    for(let j=0;j<P+Ps;j++)
+      S.copoMap[c][j] = parseFloat(S.copoMap[c][j])||0;
+  buildStep3COSelectors();
+  goStep(3);
+  document.getElementById('nav2').classList.add('done');
+}
+
+// ===================== STEP 3 =====================
+function buildStep3COSelectors() {
+  const {C} = S;
+  ['mid1COSelect','mid2COSelect','assignCOSelect'].forEach(id => {
+    const div = document.getElementById(id);
+    div.innerHTML = '';
+    for(let c=1;c<=C;c++) {
+      const label = document.createElement('label');
+      label.className = 'co-check';
+      label.innerHTML = `<input type="checkbox" value="${c}"> CO${c}`;
+      label.querySelector('input').addEventListener('change', () => {
+        label.classList.toggle('selected', label.querySelector('input').checked);
+      });
+      div.appendChild(label);
+    }
+  });
+  updateMid2Visibility();
+  document.getElementById('examType').addEventListener('change', updateMid2Visibility);
+  document.getElementById('splitMode').addEventListener('change', updateSplitMode);
+}
+
+function updateMid2Visibility() {
+  const et = document.getElementById('examType').value;
+  const mid2 = document.getElementById('mid2Config');
+  const div = document.getElementById('mid2ConfigDivider');
+  const show2 = et !== 'mid1only';
+  const show1 = et !== 'mid2only';
+  document.getElementById('mid1Config').style.display = show1 ? 'block' : 'none';
+  mid2.style.display = show2 ? 'block' : 'none';
+  div.style.display = (show1 && show2) ? 'block' : 'none';
+}
+
+function updateSplitMode() {
+  const isSplit = document.getElementById('splitMode').value === 'split';
+  document.getElementById('mid2SplitFields').style.display = isSplit ? 'grid' : 'none';
+}
+
+function getCheckedCOs(divId) {
+  return Array.from(document.querySelectorAll(`#${divId} input[type=checkbox]:checked`)).map(el => parseInt(el.value));
+}
+
+function generateMarksTable() {
+  const et = document.getElementById('examType').value;
+  const sm = document.getElementById('splitMode').value;
+  S.examType = et; S.splitMode = sm;
+  S.mid1Desc = parseInt(document.getElementById('mid1Desc').value)||3;
+  S.mid1Obj = parseInt(document.getElementById('mid1Obj').value)||0;
+  S.mid2Desc = sm==='split' ? (parseInt(document.getElementById('mid2Desc').value)||3) : S.mid1Desc;
+  S.mid2Obj = sm==='split' ? (parseInt(document.getElementById('mid2Obj').value)||0) : S.mid1Obj;
+  S.mid1COs = et==='mid2only' ? [] : getCheckedCOs('mid1COSelect');
+  S.mid2COs = et==='mid1only' ? [] : getCheckedCOs('mid2COSelect');
+  S.assignCOs = getCheckedCOs('assignCOSelect');
+
+  buildMarksTable();
+  goStep(4);
+  document.getElementById('nav3').classList.add('done');
+}
+
+// ===================== STEP 4: Build Marks Table =====================
+function buildMarksTable() {
+  const {N, mid1COs, mid2COs, assignCOs, mid1Desc, mid1Obj, mid2Desc, mid2Obj} = S;
+
+  // Build column definitions
+  // Each column: {label, group, coIdx (1-based)}
+  let cols = [];
+
+  // MID1 columns
+  if (mid1COs.length) {
+    // Descriptive: mid1Desc questions, each covers COs in round-robin across mid1COs
+    for(let q=0;q<mid1Desc;q++) {
+      const coIdx = mid1COs[q % mid1COs.length];
+      cols.push({label:`CO${coIdx}`, group:'mid1-desc', coIdx});
+    }
+    // Objective: mid1Obj questions
+    for(let q=0;q<mid1Obj;q++) {
+      const coIdx = mid1COs[q % mid1COs.length];
+      cols.push({label:`CO${coIdx}`, group:'mid1-obj', coIdx});
+    }
+  }
+
+  // MID2 columns
+  if (mid2COs.length) {
+    for(let q=0;q<mid2Desc;q++) {
+      const coIdx = mid2COs[q % mid2COs.length];
+      cols.push({label:`CO${coIdx}`, group:'mid2-desc', coIdx});
+    }
+    for(let q=0;q<mid2Obj;q++) {
+      const coIdx = mid2COs[q % mid2COs.length];
+      cols.push({label:`CO${coIdx}`, group:'mid2-obj', coIdx});
+    }
+  }
+
+  // Assignments
+  for(let a=0;a<assignCOs.length;a++) {
+    cols.push({label:`CO${assignCOs[a]}`, group:'assign', coIdx:assignCOs[a]});
+  }
+
+  S.colDefs = cols;
+  S.maxMarks = Array(cols.length).fill('');
+  if(!S.marks.length || S.marks.length!==N) {
+    S.marks = Array.from({length:N},()=>Array(cols.length).fill(''));
+    S.rollNos = Array.from({length:N},(_,i)=>S.rollNos[i]||'');
+  }
+
+  // Build table HTML
+  // Row 1: Group headers
+  let groupSpans = [];
+  let prev = null; let span = 0;
+  cols.forEach((c,i) => {
+    if (c.group !== prev) {
+      if(prev!==null) groupSpans.push({group:prev, span});
+      prev = c.group; span = 1;
+    } else span++;
+  });
+  if(prev!==null) groupSpans.push({group:prev, span});
+
+  const groupLabel = {
+    'mid1-desc':'◀ DESCRIPTIVE – MID1 ▶',
+    'mid1-obj':'◀ OBJ – MID1 ▶',
+    'mid2-desc':'◀ DESCRIPTIVE – MID2 ▶',
+    'mid2-obj':'◀ OBJ – MID2 ▶',
+    'assign':'◀ ASSIGNMENTS ▶'
+  };
+  const groupClass = {
+    'mid1-desc':'th-group','mid1-obj':'th-group',
+    'mid2-desc':'th-group-mid2','mid2-obj':'th-group-mid2',
+    'assign':'th-group-assign'
+  };
+
+  let html = '<table id="marksTable"><thead>';
+  // Row 0: Group headers
+  html += '<tr><th rowspan="3" style="min-width:40px">Sl.No</th><th rowspan="3" style="min-width:80px">Roll No</th>';
+  groupSpans.forEach(gs => {
+    html += `<th colspan="${gs.span}" class="${groupClass[gs.group]}">${groupLabel[gs.group]}</th>`;
+  });
+  html += '</tr>';
+
+  // Row 1: Max Marks
+  html += '<tr><th colspan="0"></th>';
+  cols.forEach((c,i) => {
+    html += `<th class="max-row"><input type="number" min="0" style="width:54px;background:rgba(59,130,246,0.12);color:var(--accent2);text-align:center;font-weight:700;border-color:var(--accent2)" placeholder="Max" value="${S.maxMarks[i]}" onchange="S.maxMarks[${i}]=parseFloat(this.value)||0;updateMaxHeader(${i},this.value)"></th>`;
+  });
+  html += '</tr>';
+
+  // Row 2: CO labels
+  html += '<tr>';
+  cols.forEach((c,i) => {
+    const cls = c.group.startsWith('mid1') ? 'th-group' : c.group.startsWith('mid2') ? 'th-group-mid2' : 'th-group-assign';
+    html += `<th class="${cls}">${c.label}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  // Data rows
+  for(let r=0;r<N;r++) {
+    html += `<tr>
+      <td class="td-label">${r+1}</td>
+      <td><input type="text" class="rollno-input" value="${S.rollNos[r]}" placeholder="${401+r}" onchange="S.rollNos[${r}]=this.value"></td>`;
+    cols.forEach((c,ci) => {
+      html += `<td><input type="number" min="0" style="width:54px" placeholder="—" value="${S.marks[r][ci]===''?'':S.marks[r][ci]}" onchange="S.marks[${r}][${ci}]=this.value===''?'':parseFloat(this.value)"></td>`;
+    });
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+
+  document.getElementById('marksTableWrap').innerHTML = html;
+  document.getElementById('marksInfo').innerHTML =
+    `<strong>Columns:</strong> ${cols.length} | <strong>Students:</strong> ${N} | Enter Max Marks in blue row, then student marks.`;
+}
+
+function updateMaxHeader(i,v) { S.maxMarks[i]=parseFloat(v)||0; }
+
+function saveMarks() {
+  // sync from DOM
+  const tbl = document.getElementById('marksTable');
+  if(!tbl) return;
+  const rows = tbl.querySelectorAll('tbody tr');
+  rows.forEach((tr,r) => {
+    const cells = tr.querySelectorAll('td');
+    const rollInput = cells[1].querySelector('input');
+    if(rollInput) S.rollNos[r] = rollInput.value;
+    cells.forEach((td,ci) => {
+      if(ci<2) return;
+      const inp = td.querySelector('input');
+      if(inp) S.marks[r][ci-2] = inp.value==='' ? '' : parseFloat(inp.value);
+    });
+  });
+  // sync max marks
+  tbl.querySelectorAll('thead tr:nth-child(2) input').forEach((inp,i) => {
+    S.maxMarks[i] = parseFloat(inp.value)||0;
+  });
+  showAlert('marksInfo','✅ Marks saved successfully!','alert-success');
+}
+
+function showAlert(containerId, msg, cls) {
+  const el = document.getElementById(containerId);
+  el.className = 'alert '+cls;
+  el.innerHTML = msg;
+  setTimeout(()=>{ el.className='info-bar'; el.innerHTML=`<strong>Columns:</strong> ${S.colDefs.length} | <strong>Students:</strong> ${S.N} | Enter Max Marks in blue row, then student marks.`; }, 2000);
+}
+
+// ===================== ATTAINMENT CALCULATION =====================
+function generateAttainment() {
+  saveMarks();
+  const {C, N, colDefs, maxMarks, marks, rollNos} = S;
+
+  // Aggregate per CO
+  // For each CO, find all columns belonging to it
+  const coMaxMap = {}; // coIdx -> sum of max marks for that CO
+  const coMarksMap = {}; // coIdx -> [student sum]
+
+  for(let co=1;co<=C;co++) { coMaxMap[co]=0; coMarksMap[co]=Array(N).fill(0); }
+
+  colDefs.forEach((col,ci) => {
+    const co = col.coIdx;
+    coMaxMap[co] += (maxMarks[ci]||0);
+    for(let r=0;r<N;r++) {
+      coMarksMap[co][r] += (marks[r][ci]==='' ? 0 : parseFloat(marks[r][ci])||0);
+    }
+  });
+
+  // Build attainment table
+  let html = '<table><thead>';
+  html += '<tr><th>Sl.No</th><th>Roll No</th>';
+  for(let co=1;co<=C;co++) html += `<th>CO${co} (Max: ${coMaxMap[co]||'—'})</th>`;
+  html += '</tr></thead><tbody>';
+
+  const coAvg = Array(C).fill(0);
+  for(let r=0;r<N;r++) {
+    html += `<tr><td class="td-label">${r+1}</td><td class="td-label">${rollNos[r]||401+r}</td>`;
+    for(let co=1;co<=C;co++) {
+      const v = coMarksMap[co][r];
+      html += `<td class="final-co-cell">${v.toFixed(1)}</td>`;
+      coAvg[co-1] += v;
+    }
+    html += '</tr>';
+  }
+
+  // Average row
+  html += '<tr class="avg-row"><td colspan="2">AVERAGE →</td>';
+  const coAttPct = [];
+  for(let co=1;co<=C;co++) {
+    const avg = N>0 ? coAvg[co-1]/N : 0;
+    const pct = coMaxMap[co] > 0 ? (avg/coMaxMap[co]*100) : 0;
+    coAttPct.push({avg:avg.toFixed(2), pct:pct.toFixed(1)});
+    html += `<td>${avg.toFixed(2)}<br><span style="font-size:10px;opacity:0.7">${pct.toFixed(1)}%</span></td>`;
+  }
+  html += '</tr></tbody></table>';
+
+  S.coAttainment = coAttPct;
+  document.getElementById('attainmentTable').innerHTML = html;
+  document.getElementById('attainmentPanel').classList.remove('hidden');
+  document.getElementById('nav4').classList.add('done');
+  document.getElementById('attainmentPanel').scrollIntoView({behavior:'smooth'});
+}
+
+// ===================== XLSX DOWNLOAD =====================
+function downloadXLSX() {
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Course Info
+  const infoData = [
+    ['CO-PO Attainment Report'],
+    ['Regulation', S.regulation],
+    ['Department', S.department],
+    ['Academic Year', S.acYear],
+    ['No. of Students', S.N],
+    ['No. of COs', S.C],
+    ['No. of POs', S.P],
+    ['No. of PSOs', S.Ps],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(infoData);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Course Info');
+
+  // Sheet 2: CO-PO Mapping
+  const mapHeaders = ['CO / PO / PSO'];
+  for(let p=1;p<=S.P;p++) mapHeaders.push('PO'+p);
+  for(let ps=1;ps<=S.Ps;ps++) mapHeaders.push('PSO'+ps);
+  const mapRows = [mapHeaders];
+  for(let c=0;c<S.C;c++) {
+    const row = [`CO${c+1}`, ...S.copoMap[c]];
+    mapRows.push(row);
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(mapRows);
+  XLSX.utils.book_append_sheet(wb, ws2, 'CO-PO Mapping');
+
+  // Sheet 3: Marks Entry (raw)
+  const colLabels = ['Sl.No','Roll No',...S.colDefs.map(c=>c.label)];
+  const groupRow = ['','', ...S.colDefs.map(c=>c.group)];
+  const maxRow = ['Max Marks','', ...S.maxMarks];
+  const marksRows = [groupRow, colLabels, maxRow];
+  for(let r=0;r<S.N;r++) {
+    marksRows.push([r+1, S.rollNos[r]||401+r, ...S.marks[r].map(v=>v===''?0:v)]);
+  }
+  const ws3 = XLSX.utils.aoa_to_sheet(marksRows);
+  XLSX.utils.book_append_sheet(wb, ws3, 'Marks Entry');
+
+  // Sheet 4: CO Attainment
+  const attHdr = ['Sl.No','Roll No'];
+  for(let co=1;co<=S.C;co++) attHdr.push(`CO${co} (Max:${getCoMax(co)})`);
+  const attRows = [attHdr];
+  const coAvgArr = Array(S.C).fill(0);
+  for(let r=0;r<S.N;r++) {
+    const row = [r+1, S.rollNos[r]||401+r];
+    for(let co=1;co<=S.C;co++) {
+      let sum=0;
+      S.colDefs.forEach((col,ci)=>{ if(col.coIdx===co) sum+=(S.marks[r][ci]===''?0:parseFloat(S.marks[r][ci])||0); });
+      row.push(parseFloat(sum.toFixed(2)));
+      coAvgArr[co-1]+=sum;
+    }
+    attRows.push(row);
+  }
+  const avgRow = ['','Average'];
+  const pctRow = ['','Attainment %'];
+  for(let co=1;co<=S.C;co++) {
+    const avg = S.N>0 ? coAvgArr[co-1]/S.N : 0;
+    const mx = getCoMax(co);
+    avgRow.push(parseFloat(avg.toFixed(2)));
+    pctRow.push(mx>0 ? parseFloat((avg/mx*100).toFixed(2)) : 0);
+  }
+  attRows.push(avgRow, pctRow);
+  const ws4 = XLSX.utils.aoa_to_sheet(attRows);
+  XLSX.utils.book_append_sheet(wb, ws4, 'CO Attainment');
+
+  XLSX.writeFile(wb, `COPO_${S.department}_${S.acYear.replace(/[^a-z0-9]/gi,'_')}.xlsx`);
+}
+
+function getCoMax(coIdx) {
+  let sum=0;
+  S.colDefs.forEach((col,ci)=>{ if(col.coIdx===coIdx) sum+=(S.maxMarks[ci]||0); });
+  return sum;
+}
+</script>
+</body>
+</html>
